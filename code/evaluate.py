@@ -1,3 +1,6 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import torch
 import numpy as np
 from models.unified_model import UnifiedMultimodalModel
@@ -35,6 +38,12 @@ def evaluate_model(model_path, data_path, output_dir="results", num_classes=6):
         num_classes=num_classes
     ).to(device)
 
+    # Initialize new modules
+    if hasattr(model, "setup_cross_modal_attention"):
+        model.setup_cross_modal_attention(n_pathways=20, n_modalities=num_modalities)
+    if hasattr(model, "setup_modality_gating"):
+        model.setup_modality_gating(n_modalities=num_modalities, embed_dim=256)
+
     # Initialize pathway attention if checkpoint contains it
     state_dict = torch.load(model_path, map_location="cpu")
     if any(k.startswith("pathway_attention.") for k in state_dict.keys()):
@@ -42,10 +51,15 @@ def evaluate_model(model_path, data_path, output_dir="results", num_classes=6):
         soft_key = "pathway_attention.soft_membership"
         use_soft = soft_key in state_dict
         import os
-        soft_path = "data/soft_module_mask.npz"
-        hard_path = "data/pathway_mask.npz"
+        soft_path = "../data/soft_module_mask.npz"
+        hard_path = "../data/pathway_mask.npz"
         mask_path = soft_path if use_soft and os.path.exists(soft_path) else hard_path
         model.setup_pathway_attention(mask_path, use_soft_membership=use_soft)
+    # Initialize new modules if checkpoint expects them
+    if hasattr(model, "setup_cross_modal_attention"):
+        model.setup_cross_modal_attention(n_pathways=20, n_modalities=num_modalities)
+    if hasattr(model, "setup_modality_gating"):
+        model.setup_modality_gating(n_modalities=num_modalities, embed_dim=256)
     model.load_state_dict(state_dict)
     model.eval()
     

@@ -1,3 +1,6 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import os
 import argparse
 import time
@@ -14,6 +17,8 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from lifelines.utils import concordance_index
 
 # Import your model
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from models.unified_model import UnifiedMultimodalModel
 from models.survival_head import cox_partial_log_likelihood
 from models.classification_head import classification_loss, focal_loss
@@ -134,8 +139,9 @@ def train(
     patience=15,
     save_every=1,
     ae_latent_dims=None,
-    pathway_mask_path=None
+    pathway_mask_path=None,
 ):
+    print("[DEBUG] train() started, output_dir=", output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     # Per-modality latent dims: large dims for high-dim modalities, smaller for low-dim
@@ -151,6 +157,7 @@ def train(
             else:
                 ae_latent_dims.append(64)
 
+    print("[DEBUG] Creating model...")
     model = UnifiedMultimodalModel(
         modality_input_dims=modality_input_dims,
         ae_latent_dim=ae_latent_dims,
@@ -162,7 +169,7 @@ def train(
     if pathway_mask_path is not None:
         model.setup_pathway_attention(pathway_mask_path)
 
-    # Cosine LR with linear warmup
+# Cosine LR with linear warmup
     warmup_epochs = 5
     base_lr = lr
     optimizer = optim.AdamW(model.parameters(), lr=base_lr, weight_decay=1e-4)
@@ -204,6 +211,7 @@ def train(
     best_model_wts = copy.deepcopy(model.state_dict())
     epochs_no_improve = 0
 
+    print("[DEBUG] Epoch loop started")
     for epoch in range(1, epochs + 1):
         # Warmup learning rate for first warmup_epochs
         if epoch <= warmup_epochs:
@@ -425,8 +433,10 @@ def main():
     modality_input_dims = [arr.shape[1] for arr in train_ds.modalities]
     print(f"[INFO] Detected {len(modality_input_dims)} modalities with dims: {modality_input_dims}")
 
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=multimodal_collate, num_workers=args.num_workers)
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, collate_fn=multimodal_collate, num_workers=args.num_workers)
+    print("[DEBUG] Creating dataloaders...")
+    os.environ["TORCH_SHARED_MEMORY_MANAGER"] = "1"
+    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=multimodal_collate, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, collate_fn=multimodal_collate, num_workers=0)
 
     # Train with per-modality latent dims matching checkpoint [64, 256, 256, 256, 128]
     _ = train(
