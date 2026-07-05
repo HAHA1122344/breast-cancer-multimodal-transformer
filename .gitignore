@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (too large for GitHub)
+*.npz
+*.csv
+*.json
+data/
+
+# Checkpoints (too large for GitHub)
+checkpoints/
+checkpoints_*/
+
+# Results
+results/
+results_*/
+
+# LaTeX intermediate files
+*.aux
+*.log
+*.out
+*.pdf
+*.xdv
+*.fdb_latexmk
+*.fls
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Scripts
+scripts/
+
+# Install scripts
+install_latex.sh
+
+# Workspace
+*.code-workspace
