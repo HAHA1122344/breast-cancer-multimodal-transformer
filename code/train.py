@@ -26,7 +26,7 @@ import copy
 
 # Class weights for imbalance: [490, 330, 171, 129, 142, 107]
 # Higher weight for minority classes (Class 5 is most under-represented)
-CLASS_WEIGHTS = torch.tensor([1.0, 1.5, 2.9, 3.8, 3.4, 4.6])
+CLASS_WEIGHTS = torch.tensor([1.0, 1.5, 3.5, 5.0, 4.0, 6.0])
 
 # -----------------------------
 
@@ -133,11 +133,11 @@ def train(
     device,
     output_dir,
     num_classes=6,
-    epochs=100,
+    epochs=150,
     lr=1e-4,
     cls_weight=1.0,
     surv_weight=1.0,
-    patience=15,
+    patience=30,
     save_every=1,
     ae_latent_dims=None,
     pathway_mask_path=None,
@@ -284,9 +284,12 @@ def train(
             loss = (cls_weight * loss_cls + surv_weight * loss_surv +
                     0.3 * loss_recon + 0.1 * loss_contrast + 0.1 * loss_pathway)
 
+            loss = loss / args.gradient_accumulation_steps
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
+            if (batch_idx + 1) % args.gradient_accumulation_steps == 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                optimizer.step()
+                optimizer.zero_grad()
 
             train_losses.append(loss.item())
             train_cls_losses.append(loss_cls.item())
@@ -400,12 +403,12 @@ def parse_args():
     parser.add_argument("--train_npz", type=str, required=True, help="Path to train .npz (mod_*, labels, durations, events)")
     parser.add_argument("--val_npz", type=str, required=True, help="Path to validation .npz")
     parser.add_argument("--output_dir", type=str, default="checkpoints", help="Where to save model checkpoints")
-    parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--cls_weight", type=float, default=1.0)
     parser.add_argument("--surv_weight", type=float, default=1.0)
-    parser.add_argument("--patience", type=int, default=15)
+    parser.add_argument("--patience", type=int, default=30)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_classes", type=int, default=6, help="Number of classification classes")
