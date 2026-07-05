@@ -70,7 +70,7 @@ def classification_loss(logits: torch.Tensor, labels: torch.Tensor, class_weight
     return criterion(logits, labels)
 
 
-def focal_loss(logits: torch.Tensor, labels: torch.Tensor, alpha=None, gamma: float = 2.0, reduction: str = "mean") -> torch.Tensor:
+def focal_loss(logits: torch.Tensor, labels: torch.Tensor, alpha=None, gamma: float = 2.0, reduction: str = "mean", label_smoothing: float = 0.0) -> torch.Tensor:
     """
     Focal Loss for multi-class classification.
     FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
@@ -86,6 +86,11 @@ def focal_loss(logits: torch.Tensor, labels: torch.Tensor, alpha=None, gamma: fl
     probs = torch.exp(log_probs)
     pt = probs.gather(1, labels.unsqueeze(1)).squeeze(1)
     ce_loss = -log_probs.gather(1, labels.unsqueeze(1)).squeeze(1)
+
+    # Label smoothing
+    if label_smoothing > 0:
+        uniform_ce = -log_probs.mean(dim=1)
+        ce_loss = (1 - label_smoothing) * ce_loss + label_smoothing * uniform_ce
 
     if alpha is not None:
         alpha = alpha.to(logits.device)

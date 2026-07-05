@@ -9,6 +9,8 @@ from models.unified_model import UnifiedMultimodalModel
 from train import MultimodalNPZDataset, multimodal_collate, classification_loss, focal_loss, cox_partial_log_likelihood
 
 def objective(trial):
+    torch.manual_seed(42)
+    np.random.seed(42)
     # Hyperparameters to search
     lr = trial.suggest_float("lr", 1e-5, 1e-4, log=True)
     dropout = trial.suggest_float("dropout", 0.3, 0.6)
@@ -49,7 +51,7 @@ def objective(trial):
     best_val_acc = 0.0
     patience_counter = 0
     
-    for epoch in range(30):
+    for epoch in range(50):
         model.train()
         for batch in train_loader:
             modalities, labels, durations, events = batch

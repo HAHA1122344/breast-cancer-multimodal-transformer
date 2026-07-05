@@ -61,8 +61,17 @@ class PathwayGuidedAttention(nn.Module):
     def forward(self, x: torch.Tensor) -> tuple:
         B = x.size(0)
         device = x.device
+        input_dim = x.size(1)
+        
         if self.use_soft_membership:
             membership = self.soft_membership.to(device)
+            # Adapt to input dimension
+            if membership.size(0) != input_dim:
+                if input_dim < membership.size(0):
+                    membership = membership[:input_dim, :]
+                else:
+                    padding = torch.zeros(input_dim - membership.size(0), membership.size(1), device=device)
+                    membership = torch.cat([membership, padding], dim=0)
             pathway_repr = torch.matmul(x, membership)
         else:
             pathway_mask = self.pathway_mask.to(device)
@@ -71,7 +80,7 @@ class PathwayGuidedAttention(nn.Module):
         pathway_scores = self.attention(pathway_repr)
         pathway_weights = F.softmax(pathway_scores, dim=1)
         if self.use_soft_membership:
-            attended_x = torch.matmul(pathway_weights.unsqueeze(1), self.soft_membership.to(device).t()).squeeze(1)
+            attended_x = torch.matmul(pathway_weights.unsqueeze(1), membership.t()).squeeze(1)
         else:
             attended_x = torch.matmul(pathway_weights.unsqueeze(1), self.pathway_mask.to(device).t()).squeeze(1)
         attended_x = x + attended_x
