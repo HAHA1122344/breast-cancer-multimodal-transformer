@@ -22,7 +22,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from models.unified_model import UnifiedMultimodalModel
 from models.survival_head import cox_partial_log_likelihood
 from models.classification_head import classification_loss, focal_loss
-from sklearn.feature_selection import mutual_info_classif
 import copy
 
 # Class weights for imbalance: [490, 330, 171, 129, 142, 107]
@@ -167,11 +166,6 @@ def train(
         num_classes=num_classes
     ).to(device)
 
-    # Feature selection (keep top 500 most discriminative genes per modality)
-    if True:  # Enable feature selection
-        print("[INFO] Running feature selection...")
-        # This will be done on-the-fly in the training loop
-
     # Pathway-guided attention for mRNA
     if pathway_mask_path is not None:
         model.setup_pathway_attention(pathway_mask_path)
@@ -244,11 +238,17 @@ def train(
             durations = durations.to(device)
             events = events.to(device)
 
-            # Mixup augmentation
+            # Mixup augmentation with class-aware sampling
             if model.training and np.random.rand() < 0.5:
                 lam = np.random.beta(0.4, 0.4)
                 batch_size = labels.size(0)
+                # Mix with similar classes only
                 index = torch.randperm(batch_size).to(device)
+                for i in range(batch_size):
+                    if np.random.rand() < 0.3:  # 30% chance to enforce same-class mixup
+                        same_class_idx = (labels == labels[i]).nonzero().squeeze(1)
+                        if len(same_class_idx) > 1:
+                            index[i] = same_class_idx[torch.randint(0, len(same_class_idx), (1,)).to(device)]
                 modalities_mixed = [lam * m + (1 - lam) * m[index] for m in modalities]
                 labels_mixed = lam * F.one_hot(labels, num_classes).float() + (1 - lam) * F.one_hot(labels[index], num_classes).float()
                 use_mixup = True
@@ -468,14 +468,7 @@ def main():
 
     print("[DEBUG] Creating dataloaders...")
     os.environ["TORCH_SHARED_MEMORY_MANAGER"] = "1"
-    # Oversample minority classes using weighted sampling
-    from torch.utils.data import WeightedRandomSampler
-    class_counts = np.bincount(train_ds.labels, minlength=6)
-    class_weights = 1. / np.maximum(class_counts, 1)
-    sample_weights = class_weights[train_ds.labels]
-    sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
-
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, sampler=sampler, collate_fn=multimodal_collate, num_workers=0)
+    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=multimodal_collate, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, collate_fn=multimodal_collate, num_workers=0)
 
     # Train with per-modality latent dims matching checkpoint [64, 256, 256, 256, 128]

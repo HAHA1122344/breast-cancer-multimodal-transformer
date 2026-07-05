@@ -291,7 +291,7 @@ if __name__ == "__main__":
     model = UnifiedMultimodalModel(
         modality_input_dims=modality_dims,
         ae_latent_dim=64,
-        transformer_cfg={"d_model": 128, "nhead": 4, "num_layers": 2, "dim_feedforward": 256, "dropout": 0.1, "use_cls_token": True},
+        transformer_cfg={"d_model": 128, "nhead": 4, "num_layers": 2, "dim_feedforward": 256, "dropout": 0.5, "use_cls_token": True},
         num_classes=4,
         cls_hidden=64,
     )

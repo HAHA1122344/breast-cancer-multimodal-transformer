@@ -22,7 +22,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from models.unified_model import UnifiedMultimodalModel
 from models.survival_head import cox_partial_log_likelihood
 from models.classification_head import classification_loss, focal_loss
-from sklearn.feature_selection import mutual_info_classif
 import copy
 
 # Class weights for imbalance: [490, 330, 171, 129, 142, 107]
@@ -166,11 +165,6 @@ def train(
         transformer_cfg={"d_model": 256, "nhead": 8, "num_layers": 4, "dim_feedforward": 512, "dropout": 0.3, "use_cls_token": True},
         num_classes=num_classes
     ).to(device)
-
-    # Feature selection (keep top 500 most discriminative genes per modality)
-    if True:  # Enable feature selection
-        print("[INFO] Running feature selection...")
-        # This will be done on-the-fly in the training loop
 
     # Pathway-guided attention for mRNA
     if pathway_mask_path is not None:
@@ -474,14 +468,7 @@ def main():
 
     print("[DEBUG] Creating dataloaders...")
     os.environ["TORCH_SHARED_MEMORY_MANAGER"] = "1"
-    # Oversample minority classes using weighted sampling
-    from torch.utils.data import WeightedRandomSampler
-    class_counts = np.bincount(train_ds.labels, minlength=6)
-    class_weights = 1. / np.maximum(class_counts, 1)
-    sample_weights = class_weights[train_ds.labels]
-    sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
-
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, sampler=sampler, collate_fn=multimodal_collate, num_workers=0)
+    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=multimodal_collate, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, collate_fn=multimodal_collate, num_workers=0)
 
     # Train with per-modality latent dims matching checkpoint [64, 256, 256, 256, 128]
