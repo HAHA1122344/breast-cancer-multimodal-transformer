@@ -284,9 +284,9 @@ def train(
             loss = (cls_weight * loss_cls + surv_weight * loss_surv +
                     0.3 * loss_recon + 0.1 * loss_contrast + 0.1 * loss_pathway)
 
-            loss = loss / args.gradient_accumulation_steps
+            loss = loss / gradient_accumulation_steps
             loss.backward()
-            if (batch_idx + 1) % args.gradient_accumulation_steps == 0:
+            if (batch_idx + 1) % gradient_accumulation_steps == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
                 optimizer.zero_grad()
