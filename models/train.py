@@ -414,6 +414,7 @@ def parse_args():
     parser.add_argument("--num_classes", type=int, default=6, help="Number of classification classes")
     parser.add_argument("--binarize_mutations", action="store_true", default=True, help="Binarize mutation modality (count -> presence/absence)")
     parser.add_argument("--pathway_mask_path", type=str, default=None, help="Path to pathway mask .npz file for pathway-guided attention")
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help="Gradient accumulation steps")
     return parser.parse_args()
 
 
