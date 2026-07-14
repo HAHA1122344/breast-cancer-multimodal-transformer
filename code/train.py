@@ -141,6 +141,7 @@ def train(
     save_every=1,
     ae_latent_dims=None,
     pathway_mask_path=None,
+    gradient_accumulation_steps=1,
 ):
     print("[DEBUG] train() started, output_dir=", output_dir)
     os.makedirs(output_dir, exist_ok=True)
@@ -231,7 +232,7 @@ def train(
         train_cls_losses = []
         train_surv_losses = []
 
-        for batch in train_loader:
+        for batch_idx, batch in enumerate(train_loader):
             modalities, labels, durations, events = batch
             modalities = [m.to(device) for m in modalities]
             labels = labels.to(device)
